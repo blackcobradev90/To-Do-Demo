@@ -12,6 +12,7 @@ export const EventsListPopup = ({ isOpen, onClose }: EventsListPopupProps) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -30,6 +31,33 @@ export const EventsListPopup = ({ isOpen, onClose }: EventsListPopupProps) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteEvent = (eventId: string, eventName: string) => {
+    setConfirmDelete({ id: eventId, name: eventName });
+  };
+
+  const confirmDeleteEvent = async () => {
+    if (!confirmDelete) return;
+
+    try {
+      const success = await eventService.deleteEvent(confirmDelete.id);
+      if (success) {
+        // Remove the event from the local state
+        setEvents(events.filter(event => event.id !== confirmDelete.id));
+        setConfirmDelete(null);
+      } else {
+        setError('Failed to delete event. Please try again.');
+        setConfirmDelete(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete event');
+      setConfirmDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setConfirmDelete(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -103,6 +131,17 @@ export const EventsListPopup = ({ isOpen, onClose }: EventsListPopupProps) => {
                         {event.name || 'Untitled Event'}
                       </h3>
                     </div>
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => handleDeleteEvent(event.id, event.name)}
+                      className="w-9 h-9 flex items-center justify-center bg-red-500/20 backdrop-blur-sm rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-all text-red-400 hover:text-red-300"
+                      aria-label="Delete event"
+                      title="Delete event"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
 
                   {/* Event Details */}
@@ -174,6 +213,65 @@ export const EventsListPopup = ({ isOpen, onClose }: EventsListPopupProps) => {
           </button>
         </div>
       </div>
+
+      {/* Custom Confirmation Popup */}
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          onClick={cancelDelete}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+          {/* Confirmation Dialog */}
+          <div
+            className="relative bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-8 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)' }}
+          >
+            {/* Icon */}
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-red-500/30">
+                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-2xl font-bold text-white text-center mb-3">
+              Delete Event?
+            </h3>
+
+            {/* Message */}
+            <p className="text-white/70 text-center mb-2">
+              Are you sure you want to delete
+            </p>
+            <p className="text-white font-semibold text-center mb-6">
+              "{confirmDelete.name || 'this event'}"?
+            </p>
+            <p className="text-white/50 text-sm text-center mb-8">
+              This action cannot be undone.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={cancelDelete}
+                className="flex-1 px-6 py-3 bg-white/10 backdrop-blur-sm rounded-xl text-white border border-white/20 hover:bg-white/15 transition-all font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteEvent}
+                className="flex-1 px-6 py-3 bg-red-500/80 backdrop-blur-sm rounded-xl text-white border border-red-500/50 hover:bg-red-500 transition-all font-medium shadow-lg"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
